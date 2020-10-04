@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"log"
+	"math"
 	"strings"
 	"time"
 
@@ -16,6 +17,10 @@ import (
 	"gotrading/bitflyer"
 	"gotrading/config"
 	"gotrading/tradingalgo"
+)
+
+const (
+	ApiFeePercent = 0.0012
 )
 
 type AI struct {
@@ -63,14 +68,19 @@ func NewAI(productCode string, duration time.Duration, pastPeriod int, UsePercen
 		StartTrade:       time.Now(),
 		StopLimitPercent: stopLimitPercent,
 	}
-	Ai.UpdateOptimizeParams()
+	Ai.UpdateOptimizeParams(false)
 	return Ai
 }
 
-func (ai *AI) UpdateOptimizeParams() {
+func (ai *AI) UpdateOptimizeParams(isContinue bool) {
 	df, _ := models.GetAllCandle(ai.ProductCode, ai.Duration, ai.PastPeriod)
 	ai.OptimizedTradeParams = df.OptimizeParams()
 	log.Printf("optimized_trade_params=%+v", ai.OptimizedTradeParams)
+	if ai.OptimizedTradeParams == nil && isContinue && !ai.BackTest {
+		log.Print("status_no_params")
+		time.Sleep(10 * ai.Duration)
+		ai.UpdateOptimizeParams(isContinue)
+	}
 }
 
 func Notification(message string, s models.SignalEvent) {
@@ -87,16 +97,56 @@ func (ai *AI) Buy(candle models.Candle) (childOrderAcceptanceID string, isOrderC
 		couldBuy := ai.SignalEvents.Buy(ai.ProductCode, candle.Time, candle.Close, config.Config.TradeBtcAmount, true)
 		if couldBuy == true {
 			test := ai.SignalEvents.Signals[len(ai.SignalEvents.Signals)-1]
-			message := fmt.Sprintf("BUY completed.")
-
+			availableCurrency, availableCoin := ai.GetAvailableBalance()
+			message := fmt.Sprintf("BackTest: BUY completed. \n %.2f, %.2f", availableCurrency, availableCoin)
 			Notification(message, test)
-
+			return "", couldBuy
 		}
-
-		return "", couldBuy
 	}
 
-	//TODO
+	if ai.StartTrade.After(candle.Time) {
+		return
+	}
+
+	if !ai.SignalEvents.CanBuy(candle.Time) {
+		return
+	}
+
+	availableCurrency, _ := ai.GetAvailableBalance()
+	useCurrency := availableCurrency * ai.UsePercent
+	ticker, err := ai.API.GetTicker(ai.ProductCode)
+	if err != nil {
+		return
+	}
+	size := 1 / (ticker.BestAsk / useCurrency)
+	size = ai.AdjustSize(size)
+
+	order := &bitflyer.Order{
+		ProductCode:     ai.ProductCode,
+		ChildOrderType:  "MARKET",
+		Side:            "BUY",
+		Size:            size,
+		MinuteToExpires: ai.MinuteToExpires,
+		TimeInForce:     "GTC",
+	}
+	log.Printf("status=order candle=%+v order=%+v", candle, order)
+	resp, err := ai.API.SendOrder(order)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	childOrderAcceptanceID = resp.ChildOrderAcceptanceID
+	if resp.ChildOrderAcceptanceID == "" {
+		// Insufficient fund
+		log.Printf("order=%+v status=no_id", order)
+		return
+	}
+
+	isOrderCompleted = ai.WaitUntilOrderComplete(childOrderAcceptanceID, candle.Time)
+	test := ai.SignalEvents.Signals[len(ai.SignalEvents.Signals)-1]
+	availableCurrency, availableCoin := ai.GetAvailableBalance()
+	message := fmt.Sprintf("Real: BUY completed. \n %.2f, %.2f", availableCurrency, availableCoin)
+	Notification(message, test)
 	return childOrderAcceptanceID, isOrderCompleted
 }
 
@@ -105,16 +155,50 @@ func (ai *AI) Sell(candle models.Candle) (childOrderAcceptanceID string, isOrder
 		couldSell := ai.SignalEvents.Sell(ai.ProductCode, candle.Time, candle.Close, config.Config.TradeBtcAmount, true)
 		if couldSell == true {
 			test := ai.SignalEvents.Signals[len(ai.SignalEvents.Signals)-1]
-			message := fmt.Sprintf("SELL completed.")
-
+			availableCurrency, availableCoin := ai.GetAvailableBalance()
+			message := fmt.Sprintf("BackTest: SELL completed. \n %.2f, %.2f", availableCurrency, availableCoin)
 			Notification(message, test)
+			return "", couldSell
 		}
 
-		// slack.Message("SELL completed.")
-		return "", couldSell
 	}
 
-	// TODO
+	if ai.StartTrade.After(candle.Time) {
+		return
+	}
+
+	if !ai.SignalEvents.CanSell(candle.Time) {
+		return
+	}
+
+	_, availableCoin := ai.GetAvailableBalance()
+	size := ai.AdjustSize(availableCoin)
+	order := &bitflyer.Order{
+		ProductCode:     ai.ProductCode,
+		ChildOrderType:  "MARKET",
+		Side:            "SELL",
+		Size:            size,
+		MinuteToExpires: ai.MinuteToExpires,
+		TimeInForce:     "GTC",
+	}
+	log.Printf("status=sell candle=%+v order=%+v", candle, order)
+	resp, err := ai.API.SendOrder(order)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	if resp.ChildOrderAcceptanceID == "" {
+		// Insufficient funds
+		log.Printf("order=%+v status=no_id", order)
+		return
+	}
+	childOrderAcceptanceID = resp.ChildOrderAcceptanceID
+	isOrderCompleted = ai.WaitUntilOrderComplete(childOrderAcceptanceID, candle.Time)
+
+	test := ai.SignalEvents.Signals[len(ai.SignalEvents.Signals)-1]
+	availableCurrency, availableCoin := ai.GetAvailableBalance()
+	message := fmt.Sprintf("Real: SELL completed. \n %.2f, %.2f", availableCurrency, availableCoin)
+	Notification(message, test)
 	return childOrderAcceptanceID, isOrderCompleted
 }
 
@@ -227,7 +311,71 @@ func (ai *AI) Trade() {
 				continue
 			}
 			ai.StopLimit = 0.0
-			ai.UpdateOptimizeParams()
+			ai.UpdateOptimizeParams(true)
 		}
 	}
+}
+
+func (ai *AI) GetAvailableBalance() (availableCurrency, availableCoin float64) {
+	balances, err := ai.API.GetBalance()
+	if err != nil {
+		return
+	}
+	for _, balance := range balances {
+		if balance.CurrentCode == ai.CurrencyCode {
+			availableCurrency = balance.Available
+		} else if balance.CurrentCode == ai.CoinCode {
+			availableCoin = balance.Available
+		}
+	}
+	return availableCurrency, availableCoin
+}
+
+func (ai *AI) AdjustSize(size float64) float64 {
+	fee := size * ApiFeePercent
+	size = size - fee
+	return math.Floor(size*10000) / 10000
+}
+
+func (ai *AI) WaitUntilOrderComplete(childOrderAcceptanceID string, executeTime time.Time) bool {
+	params := map[string]string{
+		"product_code":              ai.ProductCode,
+		"child_order_acceptance_id": childOrderAcceptanceID,
+	}
+	expire := time.After(time.Minute + (20 * time.Second))
+	interval := time.Tick(15 * time.Second)
+	return func() bool {
+		for {
+			select {
+			case <-expire:
+				return false
+			case <-interval:
+				listOrders, err := ai.API.ListOrder(params)
+				if err != nil {
+					return false
+				}
+				if len(listOrders) == 0 {
+					return false
+				}
+				order := listOrders[0]
+				if order.ChildOrderState == "COMPLETED" {
+					if order.Side == "BUY" {
+						couldBuy := ai.SignalEvents.Buy(ai.ProductCode, executeTime, order.AveragePrice, order.Size, true)
+						if !couldBuy {
+							log.Printf("status=buy childOrderAcceptanceID=%s order=%+v", childOrderAcceptanceID, order)
+						}
+						return couldBuy
+					}
+					if order.Side == "SELL" {
+						couldSell := ai.SignalEvents.Sell(ai.ProductCode, executeTime, order.AveragePrice, order.Size, true)
+						if !couldSell {
+							log.Printf("status=sell childOrderAcceptanceID=%s order=%+v", childOrderAcceptanceID, order)
+						}
+						return couldSell
+					}
+					return false
+				}
+			}
+		}
+	}()
 }
