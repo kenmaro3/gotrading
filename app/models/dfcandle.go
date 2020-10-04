@@ -232,11 +232,11 @@ func (df *DataFrameCandle) BackTestEma(period1, period2 int) *SignalEvents {
 		}
 
 		if emaValue1[i-1] < emaValue2[i-1] && emaValue1[i] >= emaValue2[i] {
-			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, config.Config.TradeBtcAmount, false)
 		}
 
 		if emaValue1[i-1] > emaValue2[i-1] && emaValue1[i] <= emaValue2[i] {
-			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, config.Config.TradeBtcAmount, false)
 		}
 	}
 	return signalEvents
@@ -277,10 +277,10 @@ func (df *DataFrameCandle) BackTestBb(n int, k float64) *SignalEvents {
 			continue
 		}
 		if bbDown[i-1] > df.Candles[i-1].Close && bbDown[i] <= df.Candles[i].Close {
-			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, config.Config.TradeBtcAmount, false)
 		}
 		if bbUp[i-1] < df.Candles[i-1].Close && bbUp[i] >= df.Candles[i].Close {
-			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, config.Config.TradeBtcAmount, false)
 		}
 	}
 	return signalEvents
@@ -322,13 +322,13 @@ func (df *DataFrameCandle) BackTestIchimoku() *SignalEvents {
 		if chikou[i-1] < df.Candles[i-1].High && chikou[i] >= df.Candles[i].High &&
 			senkouA[i] < df.Candles[i].Low && senkouB[i] < df.Candles[i].Low &&
 			tenkan[i] > kijun[i] {
-			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, config.Config.TradeBtcAmount, false)
 		}
 
 		if chikou[i-1] > df.Candles[i-1].Low && chikou[i] <= df.Candles[i].Low &&
 			senkouA[i] > df.Candles[i].High && senkouB[i] > df.Candles[i].High &&
 			tenkan[i] < kijun[i] {
-			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, config.Config.TradeBtcAmount, false)
 		}
 	}
 	return signalEvents
@@ -358,14 +358,14 @@ func (df *DataFrameCandle) BackTestMacd(macdFastPeriod, macdSlowPeriod, macdSign
 			outMACDSignal[i] < 0 &&
 			outMACD[i-1] < outMACDSignal[i-1] &&
 			outMACD[i] >= outMACDSignal[i] {
-			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, config.Config.TradeBtcAmount, false)
 		}
 
 		if outMACD[i] > 0 &&
 			outMACDSignal[i] > 0 &&
 			outMACD[i-1] > outMACDSignal[i-1] &&
 			outMACD[i] <= outMACDSignal[i] {
-			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, config.Config.TradeBtcAmount, false)
 		}
 	}
 	return signalEvents
@@ -409,11 +409,11 @@ func (df *DataFrameCandle) BackTestRsi(period int, buyThread, sellThread float64
 			continue
 		}
 		if values[i-1] < buyThread && values[i] >= buyThread {
-			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, config.Config.TradeBtcAmount, false)
 		}
 
 		if values[i-1] > sellThread && values[i] <= sellThread {
-			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, config.Config.TradeBtcAmount, false)
 		}
 	}
 	return signalEvents

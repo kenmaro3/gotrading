@@ -18,6 +18,7 @@ type ConfigList struct {
 	Durations     map[string]time.Duration
 	DbName        string
 	SQLDriver     string
+	Host          string
 	Port          int
 
 	BackTest         bool
@@ -25,11 +26,18 @@ type ConfigList struct {
 	DataLimit        int
 	StopLimitPercent float64
 	NumRanking       int
+	TradeBtcAmount   float64
 
-	BotAccessToken string
-	ClientSecret   string
-	SigningSecret  string
-	TargetChannel  string
+	BotAccessToken       string
+	ClientSecret         string
+	SigningSecret        string
+	TargetChannel        string
+	UseSlackNotification bool
+
+	ChannelSecret       string
+	ChannelToken        string
+	UserId              string
+	UseLineNotification bool
 }
 
 var Config ConfigList
@@ -56,16 +64,24 @@ func init() {
 		TradeDuration:    durations[cfg.Section("gotrading").Key("trade_duration").String()],
 		DbName:           cfg.Section("db").Key("name").String(),
 		SQLDriver:        cfg.Section("db").Key("driver").String(),
+		Host:             cfg.Section("web").Key("host").String(),
 		Port:             cfg.Section("web").Key("port").MustInt(),
 		BackTest:         cfg.Section("gotrading").Key("back_test").MustBool(),
 		UsePercent:       cfg.Section("gotrading").Key("use_percent").MustFloat64(),
 		DataLimit:        cfg.Section("gotrading").Key("data_limit").MustInt(),
 		StopLimitPercent: cfg.Section("gotrading").Key("stop_limit_percent").MustFloat64(),
 		NumRanking:       cfg.Section("gotrading").Key("num_ranking").MustInt(),
+		TradeBtcAmount:   cfg.Section("gotrading").Key("trade_btc_amount").MustFloat64(),
 
-		BotAccessToken: cfg.Section("slack").Key("bot_user_auth_access_token").String(),
-		ClientSecret:   cfg.Section("slack").Key("client_secret").String(),
-		SigningSecret:  cfg.Section("slack").Key("signing_secret").String(),
-		TargetChannel:  cfg.Section("slack").Key("target_channel").String(),
+		BotAccessToken:       cfg.Section("slack").Key("bot_user_auth_access_token").String(),
+		ClientSecret:         cfg.Section("slack").Key("client_secret").String(),
+		SigningSecret:        cfg.Section("slack").Key("signing_secret").String(),
+		TargetChannel:        cfg.Section("slack").Key("target_channel").String(),
+		UseSlackNotification: cfg.Section("slack").Key("use_slack_notification").MustBool(),
+
+		ChannelSecret:       cfg.Section("line").Key("channel_secret").String(),
+		ChannelToken:        cfg.Section("line").Key("channel_token").String(),
+		UserId:              cfg.Section("line").Key("user_id").String(),
+		UseLineNotification: cfg.Section("line").Key("use_line_notification").MustBool(),
 	}
 }

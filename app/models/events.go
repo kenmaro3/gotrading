@@ -122,6 +122,7 @@ func (s *SignalEvents) Buy(ProductCode string, time time.Time, price, size float
 	}
 	if save {
 		signalEvent.Save()
+		log.Printf("SignalEvents: BUY: (price, size) = (%v, %v)", price, size)
 	}
 	s.Signals = append(s.Signals, signalEvent)
 	return true
@@ -142,6 +143,7 @@ func (s *SignalEvents) Sell(productCode string, time time.Time, price, size floa
 	}
 	if save {
 		signalEvent.Save()
+		log.Printf("SignalEvents: SELL: (price, size) = (%v, %v)", price, size)
 	}
 	s.Signals = append(s.Signals, signalEvent)
 	return true

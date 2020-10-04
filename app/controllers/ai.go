@@ -1,10 +1,14 @@
 package controllers
 
 import (
-	"github.com/markcheno/go-talib"
+	"fmt"
 	"log"
 	"strings"
 	"time"
+
+	"github.com/kmihara/gotrading/line"
+	"github.com/kmihara/gotrading/slack"
+	"github.com/markcheno/go-talib"
 
 	"golang.org/x/sync/semaphore"
 
@@ -69,9 +73,26 @@ func (ai *AI) UpdateOptimizeParams() {
 	log.Printf("optimized_trade_params=%+v", ai.OptimizedTradeParams)
 }
 
+func Notification(message string, s models.SignalEvent) {
+	if config.Config.UseSlackNotification {
+		slack.Message(message, &s)
+	}
+	if config.Config.UseLineNotification {
+		line.Message(message, &s)
+	}
+}
+
 func (ai *AI) Buy(candle models.Candle) (childOrderAcceptanceID string, isOrderCompleted bool) {
 	if ai.BackTest {
-		couldBuy := ai.SignalEvents.Buy(ai.ProductCode, candle.Time, candle.Close, 1.0, false)
+		couldBuy := ai.SignalEvents.Buy(ai.ProductCode, candle.Time, candle.Close, config.Config.TradeBtcAmount, true)
+		if couldBuy == true {
+			test := ai.SignalEvents.Signals[len(ai.SignalEvents.Signals)-1]
+			message := fmt.Sprintf("BUY completed.")
+
+			Notification(message, test)
+
+		}
+
 		return "", couldBuy
 	}
 
@@ -81,7 +102,15 @@ func (ai *AI) Buy(candle models.Candle) (childOrderAcceptanceID string, isOrderC
 
 func (ai *AI) Sell(candle models.Candle) (childOrderAcceptanceID string, isOrderCompleted bool) {
 	if ai.BackTest {
-		couldSell := ai.SignalEvents.Sell(ai.ProductCode, candle.Time, candle.Close, 1.0, false)
+		couldSell := ai.SignalEvents.Sell(ai.ProductCode, candle.Time, candle.Close, config.Config.TradeBtcAmount, true)
+		if couldSell == true {
+			test := ai.SignalEvents.Signals[len(ai.SignalEvents.Signals)-1]
+			message := fmt.Sprintf("SELL completed.")
+
+			Notification(message, test)
+		}
+
+		// slack.Message("SELL completed.")
 		return "", couldSell
 	}
 
