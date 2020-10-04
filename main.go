@@ -1,14 +1,17 @@
 package main
 
 import (
-	"gotrading/app/controllers"
+	"fmt"
+
 	"gotrading/config"
-	"gotrading/utils"
-	"log"
+	"gotrading/slack"
 )
 
 func main() {
-	utils.LoggingSettings(config.Config.LogFile)
-	controllers.StreamIngestionData()
-	log.Println(controllers.StartWebServer())
+	// utils.LoggingSettings(config.Config.LogFile)
+	// controllers.StreamIngestionData()
+	// log.Println(controllers.StartWebServer())
+
+	fmt.Println(config.Config.BotAccessToken)
+	slack.Message()
 }

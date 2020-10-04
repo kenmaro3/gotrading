@@ -1,10 +1,11 @@
 package config
 
 import (
-	"gopkg.in/ini.v1"
 	"log"
 	"os"
 	"time"
+
+	"gopkg.in/ini.v1"
 )
 
 type ConfigList struct {
@@ -24,6 +25,11 @@ type ConfigList struct {
 	DataLimit        int
 	StopLimitPercent float64
 	NumRanking       int
+
+	BotAccessToken string
+	ClientSecret   string
+	SigningSecret  string
+	TargetChannel  string
 }
 
 var Config ConfigList
@@ -56,5 +62,10 @@ func init() {
 		DataLimit:        cfg.Section("gotrading").Key("data_limit").MustInt(),
 		StopLimitPercent: cfg.Section("gotrading").Key("stop_limit_percent").MustFloat64(),
 		NumRanking:       cfg.Section("gotrading").Key("num_ranking").MustInt(),
+
+		BotAccessToken: cfg.Section("slack").Key("bot_user_auth_access_token").String(),
+		ClientSecret:   cfg.Section("slack").Key("client_secret").String(),
+		SigningSecret:  cfg.Section("slack").Key("signing_secret").String(),
+		TargetChannel:  cfg.Section("slack").Key("target_channel").String(),
 	}
 }
