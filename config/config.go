@@ -84,4 +84,17 @@ func init() {
 		UserId:              cfg.Section("line").Key("user_id").String(),
 		UseLineNotification: cfg.Section("line").Key("use_line_notification").MustBool(),
 	}
+
+	useEnv := os.Getenv("USE_ENV") == "true"
+	if useEnv {
+		Config.ApiKey = os.Getenv("ApiKey")
+		Config.ApiSecret = os.Getenv("ApiSecret")
+		Config.BotAccessToken = os.Getenv("BotAccessToken")
+		Config.ClientSecret = os.Getenv("ClientSecret")
+		Config.SigningSecret = os.Getenv("SigningSecret")
+		Config.ChannelSecret = os.Getenv("ChannelSecret")
+		Config.ChannelToken = os.Getenv("ChannelToken")
+		Config.UserId = os.Getenv("UserId")
+
+	}
 }
